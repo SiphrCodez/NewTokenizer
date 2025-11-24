@@ -81,9 +81,12 @@ def main():
         id2char=id2char,
         scored_word_ngrams=scored_word_ngrams,
         unigram_word_freq=unigram_word_freq,
+        char_ngram_freq=char_ngram_freq,
         top_k_phrases=TOP_K_PHRASES,
         min_freq_word_unigram=20,
         top_k_word_unigram=TOP_K_WORD_UNIGRAM,
+        min_freq_subword=50,
+        top_k_subword=100_000,
     )
     print(f"[BUILD_VOCAB]: Initial vocab size: {len(vocab)}")
 

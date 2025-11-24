@@ -2,7 +2,7 @@ import re
 from collections import defaultdict
 from typing import List, Tuple, Dict, Set, Iterable
 
-WORD_RE = re.compile(r"\w+|\S", re.UNICODE)
+WORD_RE = re.compile(r"\w+(?:['’]\w+)?[^\w\s]*|[^\w\s]", re.UNICODE)
 # Matches words or single non-whitespace characters
 
 def tokenize_words(line: str) -> List[str]:

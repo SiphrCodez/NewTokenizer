@@ -20,7 +20,6 @@ class Token:
 
 WORD_CHARS_RE = re.compile(r"\w", re.UNICODE)
 
-
 def add_word_unigram_tokens(
     vocab: Dict[int, Token],
     next_id: int,
@@ -165,6 +164,61 @@ def add_base_char_tokens(
         next_id += 1
     return next_id
 
+def add_subword_tokens_from_char_ngrams(
+    vocab: Dict[int, Token],
+    next_id: int,
+    char_ngram_freq: Dict[str, int],
+    char2id: Dict[str, int],
+    min_freq_subword: int = 50,
+    min_len_subword: int = 3,
+    max_len_subword: int = 12,
+    top_k_subword: int = 100_000,
+) -> int:
+    """
+    Add subword tokens derived from character ngrams.
+    - Only sequences with:
+        - Length in [min_len_subword, max_len_subword]
+        - No internal spaces (so they are within a word)
+        - Frequency >= min_freq_subword
+    - Sorted by a simple usefulness proxy: freq * (len - 1)
+    """
+    candidates = []
+    for ngram, freq in char_ngram_freq.items():
+        if freq < min_freq_subword:
+            continue
+        if " " in ngram:
+            continue
+        L = len(ngram)
+        if L < min_len_subword or L > max_len_subword:
+            continue
+        # Crude "usefulness" score: freq * saved_chars
+        score = freq * max(1, L - 1)
+        candidates.append((ngram, freq, score))
+
+    # Sort by simple usefulness score.
+    candidates.sort(key=lambda x: x[2], reverse=True)
+
+    added = 0
+    for ngram, freq, score in candidates:
+        if added >= top_k_subword:
+            break
+        piece = ngram_to_piece(ngram, char2id)
+        if piece is None:
+            continue
+        token = Token(
+            id=next_id,
+            piece=piece,
+            type="SUBWORD",
+            freq=float(freq),
+            score=0.0,
+            surface=ngram
+        )
+        vocab[next_id] = token
+        next_id += 1
+        added += 1
+    print(f"[VOCAB_BUILDER]: Added {added} subword tokens to vocab.")
+    return next_id
+
 def ngram_to_piece(ngram: str, char2id: Dict[str, int]) -> List[int] | None:
     """
     Convert ngram string into a sequence of base_ids.
@@ -196,9 +250,12 @@ def build_initial_vocab_from_ngrams(
     id2char: Dict[int, str],
     scored_word_ngrams: Dict[str, float],
     unigram_word_freq: Dict[str, int],
+    char_ngram_freq: Dict[str, int],
     top_k_phrases: int = 300_000,
     min_freq_word_unigram: int = 20,
     top_k_word_unigram: int = 50_000,
+    min_freq_subword: int = 50,
+    top_k_subword: int = 100_000,
 ) -> Dict[int, Token]:
     """
     Create initial vocabulary:
@@ -206,6 +263,7 @@ def build_initial_vocab_from_ngrams(
     - 2. BASE Char Tokens.
     - 3. Top-K word ngram tokens (multi-word phrases)
     - 4. High Frequency Word Unigrams
+    - 5. Subword tokens (char ngrams inside words)
     Later also add char ngrams here if you want SUBWORD candidates.
     """
     vocab: Dict[int, Token] = {}
@@ -225,7 +283,19 @@ def build_initial_vocab_from_ngrams(
         top_k_word_unigram=top_k_word_unigram
     )
 
-    # 4. Multi-word Phrase Tokens from scored ngrams
+    # 4. Subword tokens from char ngrams
+    next_id = add_subword_tokens_from_char_ngrams(
+        vocab=vocab,
+        next_id=next_id,
+        char_ngram_freq=char_ngram_freq,
+        char2id=char2id,
+        min_freq_subword=min_freq_subword,
+        min_len_subword=3,
+        max_len_subword=12,
+        top_k_subword=top_k_subword
+    )
+
+    # 5. Multi-word Phrase Tokens from scored ngrams
     sorted_ngrams = sorted(
         scored_word_ngrams.items(),
         key=lambda kv: kv[1],
