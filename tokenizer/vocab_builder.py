@@ -91,6 +91,32 @@ def add_word_unigram_tokens(
                 )
                 vocab[next_id] = spaced_token
                 next_id += 1
+            spaced_surface = " " + word + " "
+            spaced_piece = ngram_to_piece(spaced_surface, char2id)
+            if spaced_piece is not None:
+                spaced_token = Token(
+                    id=next_id,
+                    piece=spaced_piece,
+                    type="WORD",
+                    freq=float(freq),
+                    score=0.0,
+                    surface=spaced_surface
+                )
+                vocab[next_id] = spaced_token
+                next_id += 1
+            spaced_surface = word + " "
+            spaced_piece = ngram_to_piece(spaced_surface, char2id)
+            if spaced_piece is not None:
+                spaced_token = Token(
+                    id=next_id,
+                    piece=spaced_piece,
+                    type="WORD",
+                    freq=float(freq),
+                    score=0.0,
+                    surface=spaced_surface,
+                )
+                vocab[next_id] = spaced_token
+                next_id += 1
 
     print(f"[VOCAB_BUILDER] Added {added} word-unigram tokens.")
     return next_id
